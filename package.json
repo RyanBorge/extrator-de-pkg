@@ -1,0 +1,12 @@
+{
+  "name": "wallpaper-extractor",
+  "version": "1.0.0",
+  "description": "UI simples pra extrair imagens de .pkg do Wallpaper Engine via RePKG",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}
