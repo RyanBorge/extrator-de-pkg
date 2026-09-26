@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, nativeImage } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { pathToFileURL } = require("url");
 const { parsePkg } = require("./lib/pkg-parser");
 const { convertTex } = require("./lib/tex-converter");
 
@@ -23,9 +24,9 @@ function saveConfig(cfg) {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 720,
-    height: 600,
-    resizable: false,
+    width: 760,
+    height: 640,
+    resizable: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -37,9 +38,8 @@ function createWindow() {
 
 app.whenReady().then(() => {
   protocol.handle('local', (request) => {
-    // Convert local:/// to file:/// to fetch local files safely in the renderer
-    const fileUrl = request.url.replace('local://', 'file://');
-    return net.fetch(fileUrl);
+    const decodedPath = decodeURIComponent(request.url.slice('local:///'.length));
+    return net.fetch(pathToFileURL(decodedPath).href);
   });
   createWindow();
 });
@@ -108,7 +108,7 @@ ipcMain.handle("list-items", (_e, src) => {
     items.push({
       id: path.basename(dir),
       title,
-      preview: preview ? "local:///" + preview.replace(/\\/g, "/") : "",
+      preview: preview ? "local:///" + encodeURIComponent(preview) : "",
       pkgFiles: pkgFiles.map((f) => path.join(dir, f)),
     });
   }
@@ -117,7 +117,9 @@ ipcMain.handle("list-items", (_e, src) => {
 
 // ── Native extraction ───────────────────────────────────────
 
-ipcMain.handle("extract", async (event, { out, items }) => {
+const MEDIA_EXTS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4"];
+
+ipcMain.handle("extract", async (event, { out, items, resolution }) => {
   fs.mkdirSync(out, { recursive: true });
 
   const total = items.length;
@@ -127,8 +129,7 @@ ipcMain.handle("extract", async (event, { out, items }) => {
 
   for (let i = 0; i < total; i++) {
     const it = items[i];
-    const dest = path.join(out, sanitize(it.title));
-    fs.mkdirSync(dest, { recursive: true });
+    const safeTitle = sanitize(it.title);
 
     try {
       let fileCount = 0;
@@ -137,40 +138,50 @@ ipcMain.handle("extract", async (event, { out, items }) => {
         const entries = parsePkg(pkgBuf);
 
         for (const entry of entries) {
+          const ext = path.extname(entry.path).toLowerCase();
+          const baseName = path.basename(entry.path, ext);
+          
+          if (ext !== ".tex" && !MEDIA_EXTS.includes(ext)) {
+            continue; // Skip non-media garbage files
+          }
+
           try {
-            const ext = path.extname(entry.path).toLowerCase();
-            const baseName = path.basename(entry.path, ext);
-            const subDir = path.dirname(entry.path);
-            const entryDest = path.join(dest, subDir);
-            fs.mkdirSync(entryDest, { recursive: true });
+            let finalData = entry.data;
+            let finalExt = ext;
 
             if (ext === ".tex") {
-              // Convert .tex → image
               const result = convertTex(entry.data);
-              const outFile = path.join(entryDest, baseName + result.ext);
-              fs.writeFileSync(outFile, result.data);
-            } else {
-              // Save other files as-is
-              const outFile = path.join(entryDest, path.basename(entry.path));
-              fs.writeFileSync(outFile, entry.data);
+              finalData = result.data;
+              finalExt = result.ext;
             }
+            
+            // Resize if requested and it's an image
+            if (resolution !== "original" && finalExt !== ".mp4" && finalExt !== ".gif") {
+              const img = nativeImage.createFromBuffer(finalData);
+              if (!img.isEmpty()) {
+                const targetWidth = parseInt(resolution, 10);
+                const resized = img.resize({ width: targetWidth, quality: "best" });
+                finalData = finalExt === ".jpg" || finalExt === ".jpeg" ? resized.toJPEG(90) : resized.toPNG();
+              }
+            }
+
+            // Name: "Wallpaper Title - filename.png"
+            const finalName = `${safeTitle} - ${baseName}${finalExt}`;
+            const outFile = path.join(out, finalName);
+            fs.writeFileSync(outFile, finalData);
             fileCount++;
           } catch (entryErr) {
-            // If a single entry fails, save the raw file and log the error
-            try {
-              const rawOut = path.join(dest, entry.path);
-              fs.mkdirSync(path.dirname(rawOut), { recursive: true });
-              fs.writeFileSync(rawOut, entry.data);
-            } catch {}
-            event.sender.send(
-              "log",
-              `  [AVISO] ${entry.path}: ${entryErr.message.slice(0, 120)}`
-            );
+            event.sender.send("log", `  [AVISO] ${entry.path}: ${entryErr.message.slice(0, 120)}`);
           }
         }
       }
-      event.sender.send("log", `[OK] ${it.title} (${fileCount} arquivo(s))`);
-      ok++;
+      
+      if (fileCount > 0) {
+        event.sender.send("log", `[OK] ${it.title} (${fileCount} imagens/videos)`);
+        ok++;
+      } else {
+        event.sender.send("log", `[AVISO] ${it.title} (Nenhuma imagem encontrada)`);
+      }
     } catch (err) {
       event.sender.send("log", `[FALHA] ${it.title}: ${err.message.slice(0, 200)}`);
       fail++;

@@ -101,8 +101,11 @@ window.api.onProgress(({ value, max }) => {
   progressEl.value = value;
 });
 
+const resSelect = document.getElementById("resSelect");
+
 extractBtn.onclick = async () => {
   const out = outInput.value.trim();
+  const resolution = resSelect.value;
   const chosen = items.filter((it) => selected.has(it.id));
 
   if (!out) return alert("Escolhe a pasta de saida.");
@@ -112,7 +115,7 @@ extractBtn.onclick = async () => {
   openOutBtn.style.display = "none";
   logEl.textContent = "";
   try {
-    const result = await window.api.extract({ out, items: chosen });
+    const result = await window.api.extract({ out, items: chosen, resolution });
     alert(`Concluido.\nOK: ${result.ok}\nFalha: ${result.fail}`);
     openOutBtn.style.display = "block";
   } catch (e) {
