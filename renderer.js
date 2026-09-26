@@ -6,14 +6,12 @@ const progressEl = document.getElementById("progress");
 const logEl = document.getElementById("log");
 const grid = document.getElementById("grid");
 const countLabel = document.getElementById("countLabel");
-const btnPrev = document.getElementById("btnPrev");
-const btnNext = document.getElementById("btnNext");
-const pageLabel = document.getElementById("pageLabel");
+const paginationEl = document.getElementById("pagination");
 
 let items = [];
 let selected = new Set();
 let currentPage = 0;
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 24; // 3 rows of 8 or 4 rows of 6
 
 window.addEventListener("DOMContentLoaded", async () => {
   const cfg = await window.api.getConfig();
@@ -45,21 +43,6 @@ document.getElementById("btnNone").onclick = () => {
   render();
 };
 
-btnPrev.onclick = () => {
-  if (currentPage > 0) {
-    currentPage--;
-    render();
-  }
-};
-
-btnNext.onclick = () => {
-  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE) || 1;
-  if (currentPage < totalPages - 1) {
-    currentPage++;
-    render();
-  }
-};
-
 openOutBtn.onclick = () => {
   const out = outInput.value.trim();
   if (out) window.api.openFolder(out);
@@ -75,6 +58,37 @@ async function scan() {
   render();
 }
 
+function renderPagination(totalPages) {
+  paginationEl.innerHTML = "";
+  if (totalPages <= 1) return;
+  
+  const btnPrev = document.createElement("button");
+  btnPrev.textContent = "«";
+  btnPrev.disabled = currentPage === 0;
+  btnPrev.onclick = () => { currentPage--; render(); };
+  paginationEl.appendChild(btnPrev);
+  
+  let startPage = Math.max(0, currentPage - 3);
+  let endPage = Math.min(totalPages - 1, startPage + 6);
+  if (endPage - startPage < 6) {
+    startPage = Math.max(0, endPage - 6);
+  }
+  
+  for (let i = startPage; i <= endPage; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = i + 1;
+    if (i === currentPage) btn.className = "active";
+    btn.onclick = () => { currentPage = i; render(); };
+    paginationEl.appendChild(btn);
+  }
+
+  const btnNext = document.createElement("button");
+  btnNext.textContent = "»";
+  btnNext.disabled = currentPage >= totalPages - 1;
+  btnNext.onclick = () => { currentPage++; render(); };
+  paginationEl.appendChild(btnNext);
+}
+
 function render() {
   countLabel.textContent = `${items.length} encontrado(s), ${selected.size} selecionado(s)`;
   
@@ -82,9 +96,7 @@ function render() {
   if (currentPage >= totalPages) currentPage = totalPages - 1;
   if (currentPage < 0) currentPage = 0;
   
-  pageLabel.textContent = `Página ${currentPage + 1} de ${totalPages}`;
-  btnPrev.disabled = currentPage === 0;
-  btnNext.disabled = currentPage >= totalPages - 1;
+  renderPagination(totalPages);
 
   grid.innerHTML = "";
   
