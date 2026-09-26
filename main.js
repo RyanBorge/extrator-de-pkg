@@ -24,8 +24,8 @@ function saveConfig(cfg) {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 760,
-    height: 640,
+    width: 1000,
+    height: 750,
     resizable: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

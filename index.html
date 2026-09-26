@@ -4,27 +4,27 @@
 <meta charset="UTF-8" />
 <title>Wallpaper Extractor</title>
 <style>
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #eee; padding: 16px; margin: 0; }
-  h2 { margin-top: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #eee; padding: 16px; margin: 0; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
+  h2 { margin-top: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   h2 .badge { font-size: 10px; background: #0078d4; padding: 2px 8px; border-radius: 10px; font-weight: normal; }
-  .row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-shrink: 0; }
   .row label { width: 110px; font-size: 13px; flex-shrink: 0; }
   input[type=text] { flex: 1; padding: 6px; border-radius: 2px; border: 1px solid #444; background: #2a2a2a; color: #eee; }
   select { flex: 1; padding: 6px; border-radius: 2px; border: 1px solid #444; background: #2a2a2a; color: #eee; }
-  button { padding: 6px 12px; border-radius: 2px; border: none; background: #3a3a3a; color: #eee; cursor: pointer; }
+  button { padding: 6px 12px; border-radius: 2px; border: none; background: #3a3a3a; color: #eee; cursor: pointer; flex-shrink: 0; }
   button:hover { background: #4a4a4a; }
-  #extractBtn { background: #0078d4; font-weight: bold; width: 100%; padding: 10px; margin: 8px 0; border-radius: 2px; }
+  #extractBtn { background: #0078d4; font-weight: bold; width: 100%; padding: 10px; margin: 8px 0; border-radius: 2px; flex-shrink: 0; }
   #extractBtn:hover { background: #0086ea; }
   #extractBtn:disabled { background: #555; cursor: not-allowed; }
-  #openOutBtn { background: #1565c0; font-weight: bold; width: 100%; padding: 8px; margin-bottom: 6px; display: none; border-radius: 2px; }
+  #openOutBtn { background: #1565c0; font-weight: bold; width: 100%; padding: 8px; margin-bottom: 6px; display: none; border-radius: 2px; flex-shrink: 0; }
   #openOutBtn:hover { background: #1976d2; }
-  progress { width: 100%; height: 14px; }
+  progress { width: 100%; height: 14px; flex-shrink: 0; }
   #log { background: #0d0d0d; color: #4caf50; font-family: Consolas, monospace; font-size: 11px;
-         height: 100px; overflow-y: auto; padding: 6px; border-radius: 2px; white-space: pre-wrap; margin-top: 6px; }
-  .toolbar { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; font-size: 13px; }
+         height: 100px; overflow-y: auto; padding: 6px; border-radius: 2px; white-space: pre-wrap; margin-top: 6px; flex-shrink: 0; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; font-size: 13px; flex-shrink: 0; }
   
-  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; height: 350px;
-          overflow-y: auto; background: #1a1a1a; padding: 4px 0; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px; 
+          flex: 1; min-height: 0; overflow-y: auto; background: #1a1a1a; padding: 4px 0; align-content: start; }
   
   .card { background: #111; overflow: hidden; cursor: pointer; border: 2px solid transparent; 
           position: relative; aspect-ratio: 1/1; box-sizing: border-box; }
@@ -37,12 +37,6 @@
                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
   .card .check { position: absolute; top: 6px; right: 6px; width: 16px; height: 16px; cursor: pointer; z-index: 2; opacity: 0; transition: opacity 0.15s; }
   .card:hover .check, .card.selected .check { opacity: 1; }
-  
-  .pagination { display: flex; justify-content: center; align-items: center; gap: 4px; margin-top: 8px; margin-bottom: 8px; font-size: 13px; }
-  .pagination button { padding: 4px 10px; min-width: 32px; background: #2a2a2a; }
-  .pagination button:hover { background: #3a3a3a; }
-  .pagination button.active { background: #0078d4; color: #fff; font-weight: bold; }
-  .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -80,8 +74,6 @@
   </div>
 
   <div id="grid"></div>
-  
-  <div class="pagination" id="pagination"></div>
 
   <button id="extractBtn">Extrair selecionados</button>
   <button id="openOutBtn">📂 Abrir pasta de saida</button>

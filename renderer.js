@@ -6,12 +6,9 @@ const progressEl = document.getElementById("progress");
 const logEl = document.getElementById("log");
 const grid = document.getElementById("grid");
 const countLabel = document.getElementById("countLabel");
-const paginationEl = document.getElementById("pagination");
 
 let items = [];
 let selected = new Set();
-let currentPage = 0;
-const ITEMS_PER_PAGE = 24; // 3 rows of 8 or 4 rows of 6
 
 window.addEventListener("DOMContentLoaded", async () => {
   const cfg = await window.api.getConfig();
@@ -54,56 +51,14 @@ async function scan() {
   countLabel.textContent = "buscando...";
   items = await window.api.listItems(src);
   selected = new Set(items.map((it) => it.id));
-  currentPage = 0;
   render();
-}
-
-function renderPagination(totalPages) {
-  paginationEl.innerHTML = "";
-  if (totalPages <= 1) return;
-  
-  const btnPrev = document.createElement("button");
-  btnPrev.textContent = "«";
-  btnPrev.disabled = currentPage === 0;
-  btnPrev.onclick = () => { currentPage--; render(); };
-  paginationEl.appendChild(btnPrev);
-  
-  let startPage = Math.max(0, currentPage - 3);
-  let endPage = Math.min(totalPages - 1, startPage + 6);
-  if (endPage - startPage < 6) {
-    startPage = Math.max(0, endPage - 6);
-  }
-  
-  for (let i = startPage; i <= endPage; i++) {
-    const btn = document.createElement("button");
-    btn.textContent = i + 1;
-    if (i === currentPage) btn.className = "active";
-    btn.onclick = () => { currentPage = i; render(); };
-    paginationEl.appendChild(btn);
-  }
-
-  const btnNext = document.createElement("button");
-  btnNext.textContent = "»";
-  btnNext.disabled = currentPage >= totalPages - 1;
-  btnNext.onclick = () => { currentPage++; render(); };
-  paginationEl.appendChild(btnNext);
 }
 
 function render() {
   countLabel.textContent = `${items.length} encontrado(s), ${selected.size} selecionado(s)`;
-  
-  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE) || 1;
-  if (currentPage >= totalPages) currentPage = totalPages - 1;
-  if (currentPage < 0) currentPage = 0;
-  
-  renderPagination(totalPages);
-
   grid.innerHTML = "";
   
-  const startIdx = currentPage * ITEMS_PER_PAGE;
-  const pageItems = items.slice(startIdx, startIdx + ITEMS_PER_PAGE);
-  
-  for (const it of pageItems) {
+  for (const it of items) {
     const card = document.createElement("div");
     card.className = "card" + (selected.has(it.id) ? " selected" : "");
     card.title = it.title;
@@ -118,7 +73,6 @@ function render() {
       <div class="title">${it.title}</div>
     `;
     
-    // Fix: Prevent double toggling when clicking the checkbox directly
     const checkbox = card.querySelector(".check");
     checkbox.onclick = (e) => e.stopPropagation();
     checkbox.onchange = (e) => {
