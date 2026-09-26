@@ -6,9 +6,14 @@ const progressEl = document.getElementById("progress");
 const logEl = document.getElementById("log");
 const grid = document.getElementById("grid");
 const countLabel = document.getElementById("countLabel");
+const btnPrev = document.getElementById("btnPrev");
+const btnNext = document.getElementById("btnNext");
+const pageLabel = document.getElementById("pageLabel");
 
 let items = [];
 let selected = new Set();
+let currentPage = 0;
+const ITEMS_PER_PAGE = 12;
 
 window.addEventListener("DOMContentLoaded", async () => {
   const cfg = await window.api.getConfig();
@@ -40,6 +45,21 @@ document.getElementById("btnNone").onclick = () => {
   render();
 };
 
+btnPrev.onclick = () => {
+  if (currentPage > 0) {
+    currentPage--;
+    render();
+  }
+};
+
+btnNext.onclick = () => {
+  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE) || 1;
+  if (currentPage < totalPages - 1) {
+    currentPage++;
+    render();
+  }
+};
+
 openOutBtn.onclick = () => {
   const out = outInput.value.trim();
   if (out) window.api.openFolder(out);
@@ -51,13 +71,27 @@ async function scan() {
   countLabel.textContent = "buscando...";
   items = await window.api.listItems(src);
   selected = new Set(items.map((it) => it.id));
+  currentPage = 0;
   render();
 }
 
 function render() {
   countLabel.textContent = `${items.length} encontrado(s), ${selected.size} selecionado(s)`;
+  
+  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE) || 1;
+  if (currentPage >= totalPages) currentPage = totalPages - 1;
+  if (currentPage < 0) currentPage = 0;
+  
+  pageLabel.textContent = `Página ${currentPage + 1} de ${totalPages}`;
+  btnPrev.disabled = currentPage === 0;
+  btnNext.disabled = currentPage >= totalPages - 1;
+
   grid.innerHTML = "";
-  for (const it of items) {
+  
+  const startIdx = currentPage * ITEMS_PER_PAGE;
+  const pageItems = items.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+  
+  for (const it of pageItems) {
     const card = document.createElement("div");
     card.className = "card" + (selected.has(it.id) ? " selected" : "");
     card.title = it.title;
