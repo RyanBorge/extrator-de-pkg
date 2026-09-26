@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, protocol, net } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { parsePkg } = require("./lib/pkg-parser");
@@ -35,7 +35,14 @@ function createWindow() {
   win.loadFile("index.html");
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  protocol.handle('local', (request) => {
+    // Convert local:/// to file:/// to fetch local files safely in the renderer
+    const fileUrl = request.url.replace('local://', 'file://');
+    return net.fetch(fileUrl);
+  });
+  createWindow();
+});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
@@ -101,7 +108,7 @@ ipcMain.handle("list-items", (_e, src) => {
     items.push({
       id: path.basename(dir),
       title,
-      preview: preview ? "file:///" + preview.replace(/\\/g, "/") : "",
+      preview: preview ? "local:///" + preview.replace(/\\/g, "/") : "",
       pkgFiles: pkgFiles.map((f) => path.join(dir, f)),
     });
   }
