@@ -1,7 +1,7 @@
-const repkgInput = document.getElementById("repkgPath");
 const srcInput = document.getElementById("srcPath");
 const outInput = document.getElementById("outPath");
 const extractBtn = document.getElementById("extractBtn");
+const openOutBtn = document.getElementById("openOutBtn");
 const progressEl = document.getElementById("progress");
 const logEl = document.getElementById("log");
 const grid = document.getElementById("grid");
@@ -12,20 +12,9 @@ let selected = new Set();
 
 window.addEventListener("DOMContentLoaded", async () => {
   const cfg = await window.api.getConfig();
-  srcInput.value = cfg.defaultSrc;
-  repkgInput.value = cfg.repkg;
-  if (cfg.repkg) scan();
+  srcInput.value = cfg.defaultSrc || "";
+  if (cfg.defaultSrc) scan();
 });
-
-repkgInput.addEventListener("change", () => window.api.setRepkg(repkgInput.value.trim()));
-
-document.getElementById("btnRepkg").onclick = async () => {
-  const p = await window.api.pickFile([{ name: "RePKG.exe", extensions: ["exe"] }]);
-  if (p) {
-    repkgInput.value = p;
-    window.api.setRepkg(p);
-  }
-};
 
 document.getElementById("btnFolder").onclick = async () => {
   const p = await window.api.pickFolder();
@@ -49,6 +38,11 @@ document.getElementById("btnAll").onclick = () => {
 document.getElementById("btnNone").onclick = () => {
   selected.clear();
   render();
+};
+
+openOutBtn.onclick = () => {
+  const out = outInput.value.trim();
+  if (out) window.api.openFolder(out);
 };
 
 async function scan() {
@@ -77,7 +71,17 @@ function render() {
       ${img}
       <div class="title">${it.title}</div>
     `;
-    card.onclick = (e) => {
+    
+    // Fix: Prevent double toggling when clicking the checkbox directly
+    const checkbox = card.querySelector(".check");
+    checkbox.onclick = (e) => e.stopPropagation();
+    checkbox.onchange = (e) => {
+      if (e.target.checked) selected.add(it.id);
+      else selected.delete(it.id);
+      render();
+    };
+
+    card.onclick = () => {
       if (selected.has(it.id)) selected.delete(it.id);
       else selected.add(it.id);
       render();
@@ -98,19 +102,19 @@ window.api.onProgress(({ value, max }) => {
 });
 
 extractBtn.onclick = async () => {
-  const repkg = repkgInput.value.trim();
   const out = outInput.value.trim();
   const chosen = items.filter((it) => selected.has(it.id));
 
-  if (!repkg) return alert("Configura o RePKG.exe.");
   if (!out) return alert("Escolhe a pasta de saida.");
   if (chosen.length === 0) return alert("Seleciona pelo menos um wallpaper.");
 
   extractBtn.disabled = true;
+  openOutBtn.style.display = "none";
   logEl.textContent = "";
   try {
-    const result = await window.api.extract({ repkg, out, items: chosen });
+    const result = await window.api.extract({ out, items: chosen });
     alert(`Concluido.\nOK: ${result.ok}\nFalha: ${result.fail}`);
+    openOutBtn.style.display = "block";
   } catch (e) {
     alert("Erro: " + e.message);
   } finally {

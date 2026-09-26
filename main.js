@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const { spawn } = require("child_process");
+const { parsePkg } = require("./lib/pkg-parser");
+const { convertTex } = require("./lib/tex-converter");
 
 let win;
 const DEFAULT_SRC = "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\431960";
@@ -23,7 +24,7 @@ function saveConfig(cfg) {
 function createWindow() {
   win = new BrowserWindow({
     width: 720,
-    height: 640,
+    height: 600,
     resizable: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -39,9 +40,11 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
+// ── Config ──────────────────────────────────────────────────
+
 ipcMain.handle("get-config", () => {
   const cfg = loadConfig();
-  return { defaultSrc: cfg.defaultSrc || DEFAULT_SRC, repkg: cfg.repkg || "" };
+  return { defaultSrc: cfg.defaultSrc || DEFAULT_SRC };
 });
 
 ipcMain.handle("set-default-src", (_e, src) => {
@@ -50,21 +53,18 @@ ipcMain.handle("set-default-src", (_e, src) => {
   saveConfig(cfg);
 });
 
-ipcMain.handle("set-repkg", (_e, repkg) => {
-  const cfg = loadConfig();
-  cfg.repkg = repkg;
-  saveConfig(cfg);
-});
-
-ipcMain.handle("pick-file", async (_e, filters) => {
-  const r = await dialog.showOpenDialog(win, { properties: ["openFile"], filters });
-  return r.canceled ? "" : r.filePaths[0];
-});
+// ── Dialogs ─────────────────────────────────────────────────
 
 ipcMain.handle("pick-folder", async () => {
   const r = await dialog.showOpenDialog(win, { properties: ["openDirectory"] });
   return r.canceled ? "" : r.filePaths[0];
 });
+
+ipcMain.handle("open-folder", (_e, folderPath) => {
+  shell.openPath(folderPath);
+});
+
+// ── Scan workshop items ─────────────────────────────────────
 
 ipcMain.handle("list-items", (_e, src) => {
   if (!fs.existsSync(src)) return [];
@@ -102,49 +102,79 @@ ipcMain.handle("list-items", (_e, src) => {
       id: path.basename(dir),
       title,
       preview: preview ? "file:///" + preview.replace(/\\/g, "/") : "",
-      pkgPath: path.join(dir, pkgFiles[0]),
+      pkgFiles: pkgFiles.map((f) => path.join(dir, f)),
     });
   }
   return items;
 });
 
-ipcMain.handle("extract", async (event, { repkg, out, items }) => {
-  if (!fs.existsSync(repkg)) throw new Error("RePKG.exe nao encontrado.");
+// ── Native extraction ───────────────────────────────────────
+
+ipcMain.handle("extract", async (event, { out, items }) => {
   fs.mkdirSync(out, { recursive: true });
 
-  event.sender.send("progress", { value: 0, max: items.length || 1 });
-  let ok = 0, fail = 0;
+  const total = items.length;
+  event.sender.send("progress", { value: 0, max: total || 1 });
+  let ok = 0;
+  let fail = 0;
 
-  for (let i = 0; i < items.length; i++) {
+  for (let i = 0; i < total; i++) {
     const it = items[i];
     const dest = path.join(out, sanitize(it.title));
     fs.mkdirSync(dest, { recursive: true });
 
-    const result = await runRepkg(repkg, ["extract", it.pkgPath, "-o", dest]);
-    if (result.code === 0) {
-      event.sender.send("log", `[OK] ${it.title}`);
+    try {
+      let fileCount = 0;
+      for (const pkgPath of it.pkgFiles) {
+        const pkgBuf = fs.readFileSync(pkgPath);
+        const entries = parsePkg(pkgBuf);
+
+        for (const entry of entries) {
+          try {
+            const ext = path.extname(entry.path).toLowerCase();
+            const baseName = path.basename(entry.path, ext);
+            const subDir = path.dirname(entry.path);
+            const entryDest = path.join(dest, subDir);
+            fs.mkdirSync(entryDest, { recursive: true });
+
+            if (ext === ".tex") {
+              // Convert .tex → image
+              const result = convertTex(entry.data);
+              const outFile = path.join(entryDest, baseName + result.ext);
+              fs.writeFileSync(outFile, result.data);
+            } else {
+              // Save other files as-is
+              const outFile = path.join(entryDest, path.basename(entry.path));
+              fs.writeFileSync(outFile, entry.data);
+            }
+            fileCount++;
+          } catch (entryErr) {
+            // If a single entry fails, save the raw file and log the error
+            try {
+              const rawOut = path.join(dest, entry.path);
+              fs.mkdirSync(path.dirname(rawOut), { recursive: true });
+              fs.writeFileSync(rawOut, entry.data);
+            } catch {}
+            event.sender.send(
+              "log",
+              `  [AVISO] ${entry.path}: ${entryErr.message.slice(0, 120)}`
+            );
+          }
+        }
+      }
+      event.sender.send("log", `[OK] ${it.title} (${fileCount} arquivo(s))`);
       ok++;
-    } else {
-      event.sender.send("log", `[FALHA] ${it.title}: ${result.stderr.slice(0, 200)}`);
+    } catch (err) {
+      event.sender.send("log", `[FALHA] ${it.title}: ${err.message.slice(0, 200)}`);
       fail++;
     }
-    event.sender.send("progress", { value: i + 1, max: items.length });
+    event.sender.send("progress", { value: i + 1, max: total });
   }
 
   event.sender.send("log", `--- Concluido: ${ok} ok, ${fail} falha(s) ---`);
-  return { ok, fail, total: items.length };
+  return { ok, fail, total };
 });
 
 function sanitize(name) {
   return name.replace(/[\\/:*?"<>|]/g, "_").trim() || "sem_nome";
-}
-
-function runRepkg(repkg, args) {
-  return new Promise((resolve) => {
-    const p = spawn(repkg, args);
-    let stderr = "";
-    p.stderr.on("data", (d) => (stderr += d.toString()));
-    p.on("close", (code) => resolve({ code, stderr }));
-    p.on("error", (err) => resolve({ code: 1, stderr: err.message }));
-  });
 }
