@@ -1,0 +1,2 @@
+# Dependências para a interface e manipulação de arquivos/imagens
+Pillow>=10.0.0
