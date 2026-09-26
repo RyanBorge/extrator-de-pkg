@@ -8,8 +8,5 @@
   },
   "devDependencies": {
     "electron": "^31.0.0"
-  },
-  "dependencies": {
-    "pngjs": "^7.0.0"
   }
 }
