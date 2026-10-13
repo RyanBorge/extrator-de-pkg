@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src local: data:;" />
 <title>Wallpaper Extractor</title>
 <style>
   body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #eee; padding: 16px; margin: 0; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
   h2 { margin-top: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-  h2 .badge { font-size: 10px; background: #0078d4; padding: 2px 8px; border-radius: 10px; font-weight: normal; }
   .row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-shrink: 0; }
   .row label { width: 110px; font-size: 13px; flex-shrink: 0; }
   input[type=text] { flex: 1; padding: 6px; border-radius: 2px; border: 1px solid #444; background: #2a2a2a; color: #eee; }
@@ -14,13 +14,20 @@
   button { padding: 6px 12px; border-radius: 2px; border: none; background: #3a3a3a; color: #eee; cursor: pointer; flex-shrink: 0; }
   button:hover { background: #4a4a4a; }
 
+  .filter-row { display: flex; gap: 16px; align-items: center; font-size: 13px; margin-bottom: 8px; flex-shrink: 0; }
+  .filter-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
   .toolbar { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; font-size: 13px; flex-shrink: 0; }
+  .toolbar-actions { display: flex; gap: 8px; align-items: center; }
 
   .actions { display: flex; gap: 8px; margin-bottom: 12px; flex-shrink: 0; }
-  #extractBtn { background: #0078d4; font-weight: bold; flex: 1; padding: 10px; border-radius: 2px; }
+  #extractBtn { background: #0078d4; font-weight: bold; flex: 2; padding: 10px; border-radius: 2px; }
   #extractBtn:hover { background: #0086ea; }
   #extractBtn:disabled { background: #555; cursor: not-allowed; }
-  #openOutBtn { background: #1565c0; font-weight: bold; flex: 1; padding: 10px; display: none; border-radius: 2px; }
+  #cancelBtn { background: #d32f2f; font-weight: bold; flex: 1; padding: 10px; border-radius: 2px; }
+  #cancelBtn:hover { background: #f44336; }
+  #cancelBtn:disabled { background: #555; cursor: not-allowed; }
+  #openOutBtn { background: #1565c0; font-weight: bold; flex: 2; padding: 10px; display: none; border-radius: 2px; }
   #openOutBtn:hover { background: #1976d2; }
 
   .content-area { display: flex; flex: 1; min-height: 0; gap: 12px; }
@@ -57,7 +64,7 @@
 </style>
 </head>
 <body>
-  <h2>Wallpaper Engine PKG Extractor <span class="badge">Standalone</span></h2>
+  <h2>Wallpaper Engine PKG Extractor</h2>
 
   <div class="row">
     <label>Pasta workshop</label>
@@ -82,9 +89,25 @@
     </select>
   </div>
 
+  <div class="row">
+    <label>Buscar e Ordenar</label>
+    <input type="text" id="searchInput" placeholder="Filtrar wallpapers pelo nome..." />
+    <select id="sortSelect" style="max-width: 170px;">
+      <option value="name-asc">Nome (A-Z)</option>
+      <option value="name-desc">Nome (Z-A)</option>
+    </select>
+  </div>
+
+  <div class="filter-row">
+    <label>
+      <input type="checkbox" id="includeAllTex" />
+      Incluir tudo (não ignorar máscaras/partículas/efeitos)
+    </label>
+  </div>
+
   <div class="toolbar">
     <span id="countLabel">0 encontrado(s)</span>
-    <span>
+    <span class="toolbar-actions">
       <button id="btnAll">Selecionar todos</button>
       <button id="btnNone">Limpar</button>
     </span>
@@ -92,6 +115,7 @@
 
   <div class="actions">
     <button id="extractBtn">Extrair selecionados</button>
+    <button id="cancelBtn" disabled>Cancelar</button>
     <button id="openOutBtn">📂 Abrir pasta de saida</button>
   </div>
 

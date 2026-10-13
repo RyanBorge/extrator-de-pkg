@@ -1,12 +1,36 @@
 {
   "name": "wallpaper-extractor",
   "version": "1.0.0",
-  "description": "UI simples pra extrair imagens de .pkg do Wallpaper Engine via RePKG",
+  "description": "Extrai imagens e texturas de arquivos .pkg do Wallpaper Engine",
   "main": "main.js",
+  "author": "ryanborge",
+  "license": "MIT",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "test": "node --test",
+    "dist": "electron-builder --win --publish never"
+  },
+  "build": {
+    "appId": "com.ryanborge.pkgextractor",
+    "productName": "Wallpaper PKG Extractor",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "lib/**"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-${version}.${ext}"
+    }
   },
   "devDependencies": {
-    "electron": "^31.0.0"
+    "electron": "^31.0.0",
+    "electron-builder": "^25.0.0"
   }
 }
